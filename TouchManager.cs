@@ -23,12 +23,13 @@ public class TouchManager : MonoBehaviour
         }
     }
 
-    private event System.Action<TouchManager> _began;
-    private event System.Action<TouchManager> _moved;
-    private event System.Action<TouchManager> _ended;
+    private TouchInfo _info = new TouchInfo();
+    private event System.Action<TouchInfo> _began;
+    private event System.Action<TouchInfo> _moved;
+    private event System.Action<TouchInfo> _ended;
 
     // タッチ開始時のイベント
-    public static event System.Action<TouchManager> Began
+    public static event System.Action<TouchInfo> Began
     {
         add
         {
@@ -41,7 +42,7 @@ public class TouchManager : MonoBehaviour
     }
 
     // タッチ中のイベント
-    public static event System.Action<TouchManager> Moved
+    public static event System.Action<TouchInfo> Moved
     {
         add
         {
@@ -54,7 +55,7 @@ public class TouchManager : MonoBehaviour
     }
 
     // タッチ終了時のイベント
-    public static event System.Action<TouchManager> ended
+    public static event System.Action<TouchInfo> ended
     {
         add
         {
@@ -69,7 +70,8 @@ public class TouchManager : MonoBehaviour
     // 現在のタッチ状態
     private TouchState State
     {
-        get {
+        get
+        {
 #if IS_EDITOR
             // EDITOR
             if (Input.GetMouseButtonDown(0))
@@ -107,14 +109,98 @@ public class TouchManager : MonoBehaviour
         }
     }
 
-    // タッチ状態
-    private enum TouchState
+    // タッチされてる位置
+    private Vector2 Position
     {
-        None = 0,   // タッチなし
-        Began = 1,  // タッチ開始
-        Moved = 2,  // タッチ中
-        Ended = 3,  // タッチ終了
+        get
+        {
+#if IS_EDITOR
+            return State == TouchState.None ? Vector2.zero : (Vector2)Input.mousePosition;
+#else
+            return Input.GetTouch(0).position;
+#endif
+        }
     }
 
+    private void Update()
+    {
+        if (State == TouchState.Began)
+        {
+            _info.screenPoint = Position;
+            _info.deltaScreenPoint = Vector2.zero;
+            if (_began != null)
+            {
+                _began(_info);
+            }
+        }
+        else if (State == TouchState.Moved)
+        {
+            _info.deltaScreenPoint = Position - _info.screenPoint;
+            _info.screenPoint = Position;
+            if (_moved != null)
+            {
+                _moved(_info);
+            }
+         }
+        else if (State == TouchState.Ended)
+        {
+            _info.deltaScreenPoint = Position - _info.screenPoint;
+            _info.screenPoint = Position;
+            if (_ended != null)
+            {
+                _ended(_info);
+            }
+        }
+        else
+        {
+            _info.screenPoint = Vector2.zero;
+            _info.deltaScreenPoint = Vector2.zero;
+        }
+    }
 }
+
+// タッチ情報
+public class TouchInfo
+{
+    // タッチされたスクリーン座標
+    public Vector2 screenPoint;
+    // 1フレーム前にタッチされたスクリーン座標との差分
+    public Vector2 deltaScreenPoint;
+    // タッチされたビューポート座標
+    public Vector2 ViewPoint
+    {
+        get
+        {
+            _viewPoint.x = screenPoint.x / Screen.width;
+            _viewPoint.y = screenPoint.y / Screen.height;
+            return _viewPoint;
+        }
+    }
+    // 1フレーム前にタッチされビューポート座標との差分
+    public Vector2 DeltaViewPoint
+    {
+        get
+        {
+            _deltaViewPoint.x = deltaScreenPoint.x / Screen.width;
+            _deltaViewPoint.y = deltaScreenPoint.y / Screen.height;
+            return _deltaViewPoint;
+        }
+    }
+
+    private Vector2 _viewPoint = Vector2.zero;
+    private Vector2 _deltaViewPoint = Vector2.zero;
+
+
+
+}
+
+// タッチ状態
+public enum TouchState
+{
+    None = 0,   // タッチなし
+    Began = 1,  // タッチ開始
+    Moved = 2,  // タッチ中
+    Ended = 3,  // タッチ終了
+}
+
 
